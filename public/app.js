@@ -1,3 +1,5 @@
+import { callChat, callText, callImage, connectionModeLabel, isLocalApiHost } from "./api-client.js";
+
 const STORAGE_KEY = "claude-admin-settings";
 
 const $ = (id) => document.getElementById(id);
@@ -25,6 +27,7 @@ const els = {
   generatedImage: $("generatedImage"),
   imageDownload: $("imageDownload"),
   toast: $("toast"),
+  connectionBadge: $("connectionBadge"),
 };
 
 let chatHistory = [];
@@ -43,6 +46,7 @@ function loadSettings() {
   } catch {
     /* ignore */
   }
+  updateConnectionBadge();
 }
 
 function getSettings() {
@@ -61,6 +65,7 @@ function saveSettings() {
     return;
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  updateConnectionBadge();
   showToast("Налаштування збережено");
 }
 
@@ -77,12 +82,31 @@ function validateSettings() {
   return s;
 }
 
+function updateConnectionBadge() {
+  const badge = els.connectionBadge;
+  if (!badge) return;
+  const baseUrl = els.baseUrl?.value?.trim() || "";
+  if (!baseUrl) {
+    badge.textContent = "";
+    badge.className = "connection-badge hidden";
+    return;
+  }
+  badge.classList.remove("hidden", "direct", "proxy");
+  if (isLocalApiHost(baseUrl)) {
+    badge.classList.add("direct");
+    badge.textContent = "↳ " + connectionModeLabel(baseUrl);
+  } else {
+    badge.classList.add("proxy");
+    badge.textContent = "↳ " + connectionModeLabel(baseUrl);
+  }
+}
+
 function showToast(message, isError = false) {
   els.toast.textContent = message;
   els.toast.classList.remove("hidden", "error", "success");
   els.toast.classList.add(isError ? "error" : "success");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => els.toast.classList.add("hidden"), 4000);
+  toastTimer = setTimeout(() => els.toast.classList.add("hidden"), 5000);
 }
 
 function appendMessage(role, text, extraClass = "") {
@@ -94,23 +118,6 @@ function appendMessage(role, text, extraClass = "") {
   return div;
 }
 
-async function apiPost(path, body) {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const detail =
-      typeof data.details === "object"
-        ? data.details?.error?.message || data.details?.message
-        : null;
-    throw new Error(detail ? `${data.error} (${detail})` : data.error || "Помилка сервера");
-  }
-  return data;
-}
-
 function setLoading(button, loading) {
   if (!button) return;
   button.disabled = loading;
@@ -118,7 +125,6 @@ function setLoading(button, loading) {
   button.textContent = loading ? "Зачекайте…" : button.dataset.originalText;
 }
 
-// Tabs
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -129,6 +135,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 });
 
 els.saveSettings.addEventListener("click", saveSettings);
+els.baseUrl?.addEventListener("input", updateConnectionBadge);
 
 els.clearChat.addEventListener("click", () => {
   chatHistory = [];
@@ -152,11 +159,7 @@ els.chatForm.addEventListener("submit", async (e) => {
   setLoading(submitBtn, true);
 
   try {
-    const data = await apiPost("/api/chat", {
-      ...settings,
-      model: settings.chatModel,
-      messages: chatHistory,
-    });
+    const data = await callChat(settings, { messages: chatHistory });
     chatHistory.push({ role: "assistant", content: data.text });
     loadingEl.textContent = data.text || "(порожня відповідь)";
     loadingEl.classList.remove("loading");
@@ -180,9 +183,7 @@ els.textForm.addEventListener("submit", async (e) => {
   els.textResult.classList.add("hidden");
 
   try {
-    const data = await apiPost("/api/text", {
-      ...settings,
-      model: settings.chatModel,
+    const data = await callText(settings, {
       prompt: els.textPrompt.value.trim(),
       tone: els.textTone.value,
       length: els.textLength.value,
@@ -206,9 +207,7 @@ els.imageForm.addEventListener("submit", async (e) => {
   els.imageResult.classList.add("hidden");
 
   try {
-    const data = await apiPost("/api/image", {
-      ...settings,
-      model: settings.imageModel,
+    const data = await callImage(settings, {
       prompt: els.imagePrompt.value.trim(),
       size: els.imageSize.value,
     });
@@ -232,19 +231,19 @@ els.chatInput.addEventListener("keydown", (ev) => {
 function updateDeployHint() {
   const el = $("deployHint");
   if (!el) return;
-  const isLocal =
-    location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  if (isLocal) {
+  const onRender =
+    location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
+  if (onRender) {
     el.innerHTML =
-      'Base URL — корінь шлюзу без <code>/v1/chat/completions</code>. ' +
-      'Локально: Admin <code>:3001</code>, Kiro <code>http://localhost:3002/claude-kiro-oauth</code>.';
+      "<strong>Render + Docker на ПК:</strong> Base URL <code>http://localhost:3002/claude-kiro-oauth</code> — " +
+      "запити йдуть <strong>напряму з вашого браузера</strong> в Docker (Render їх не бачить). " +
+      "Docker має дозволити CORS для <code>" +
+      location.origin +
+      "</code>.";
   } else {
     el.innerHTML =
-      'Ви на <strong>' +
-      location.host +
-      "</strong> (Render). Base URL має бути <strong>публічним https://...</strong> — " +
-      "<code>localhost</code> з Render не працює (це не ваш ПК). " +
-      "Шлюз Kiro теж треба задеплоїти в інтернет або користуйтесь Admin локально.";
+      'Base URL: <code>http://localhost:3002/claude-kiro-oauth</code> (без дубля <code>/v1/chat/completions</code>). ' +
+      "Admin і Docker на одному ПК.";
   }
 }
 

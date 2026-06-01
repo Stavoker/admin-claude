@@ -35,13 +35,28 @@ npm start
 
 У полі Base URL: `http://localhost:3002/claude-kiro-oauth`
 
-### На Render ([admin-claude.onrender.com](https://admin-claude.onrender.com))
+### Render + Docker API на вашому ПК
 
-Запити до API йдуть **з серверів Render**, не з вашого браузера напряму.
+Типова схема:
 
-- **`http://localhost:3002` не працюватиме** — для Render це їхня машина, а не ваш комп’ютер.
-- Потрібен **публічний** Base URL шлюзу, наприклад `https://your-kiro-gateway.example.com/claude-kiro-oauth`
-- Або користуйтесь Admin **локально** (`npm start`), якщо Kiro лише на вашому ПК.
+- UI: [admin-claude.onrender.com](https://admin-claude.onrender.com)
+- API (Kiro): Docker `http://localhost:3002/claude-kiro-oauth`
+
+Якщо Base URL — **localhost**, запити йдуть **напряму з браузера** в Docker (не через Render). Це працює, бо браузер на тому ж ПК, що й контейнер.
+
+**Base URL:** `http://localhost:3002/claude-kiro-oauth`
+
+У Docker/API увімкніть **CORS** для origin `https://admin-claude.onrender.com` (і `http://localhost:3001` для локального Admin).
+
+Якщо CORS заблоковано — у консолі браузера буде `Failed to fetch`; додайте заголовки на шлюзі, наприклад:
+
+```
+Access-Control-Allow-Origin: https://admin-claude.onrender.com
+Access-Control-Allow-Headers: Authorization, Content-Type, x-api-key
+Access-Control-Allow-Methods: POST, OPTIONS
+```
+
+Для публічного API (не localhost) запити йдуть через сервер Render як раніше.
 
 ## Можливості
 

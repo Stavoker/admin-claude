@@ -187,6 +187,31 @@ textarea:focus {
   border-radius: 4px;
 }
 
+.connection-badge {
+  margin: 0.65rem 0 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-pill);
+  line-height: 1.4;
+}
+
+.connection-badge.hidden {
+  display: none;
+}
+
+.connection-badge.direct {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.connection-badge.proxy {
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
 /* —— Tabs —— */
 .tabs {
   display: flex;
