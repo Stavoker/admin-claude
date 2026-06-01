@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claude Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-icon" aria-hidden="true">C</span>
+          <div>
+            <h1>Claude Admin</h1>
+            <p>Локальний клієнт API</p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <h2>Налаштування</h2>
+          <label class="field">
+            <span>API ключ</span>
+            <input
+              type="password"
+              id="apiKey"
+              placeholder="sk-4785962200536602..."
+              autocomplete="off"
+            />
+          </label>
+          <label class="field">
+            <span>Base URL провайдера</span>
+            <input
+              type="url"
+              id="baseUrl"
+              placeholder="https://your-gateway.example.com"
+            />
+          </label>
+          <label class="field">
+            <span>Формат API</span>
+            <select id="apiFormat">
+              <option value="openai">OpenAI-сумісний (рекомендовано)</option>
+              <option value="anthropic">Anthropic-сумісний</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Модель (чат / текст)</span>
+            <input
+              type="text"
+              id="chatModel"
+              placeholder="claude-sonnet-4-20250514"
+            />
+          </label>
+          <label class="field">
+            <span>Модель (зображення)</span>
+            <input type="text" id="imageModel" placeholder="dall-e-3" />
+          </label>
+          <button type="button" class="btn secondary" id="saveSettings">
+            Зберегти налаштування
+          </button>
+          <p class="hint">
+            Ключ зберігається лише у вашому браузері. Запити йдуть через
+            <code>localhost:3001</code>.
+          </p>
+        </section>
+
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tab active" data-tab="chat">Чат</button>
+          <button type="button" class="tab" data-tab="text">Текст</button>
+          <button type="button" class="tab" data-tab="image">Зображення</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <section id="panel-chat" class="tab-panel active">
+          <header class="panel-header">
+            <h2>Чат з моделлю</h2>
+            <button type="button" class="btn ghost" id="clearChat">Очистити</button>
+          </header>
+          <div id="chatMessages" class="messages"></div>
+          <form id="chatForm" class="composer">
+            <textarea
+              id="chatInput"
+              rows="1"
+              placeholder="Задайте питання..."
+              required
+            ></textarea>
+            <button type="submit" class="btn primary">Надіслати</button>
+          </form>
+        </section>
+
+        <section id="panel-text" class="tab-panel">
+          <header class="panel-header">
+            <h2>Написання тексту</h2>
+          </header>
+          <form id="textForm" class="form-grid">
+            <label class="field full">
+              <span>Завдання / тема</span>
+              <textarea
+                id="textPrompt"
+                rows="4"
+                placeholder="Напиши статтю про..."
+                required
+              ></textarea>
+            </label>
+            <label class="field">
+              <span>Тон</span>
+              <select id="textTone">
+                <option value="нейтральний">Нейтральний</option>
+                <option value="офіційний">Офіційний</option>
+                <option value="дружній">Дружній</option>
+                <option value="продаючий">Продаючий</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Обсяг</span>
+              <select id="textLength">
+                <option value="коротко (1–2 абзаци)">Коротко</option>
+                <option value="середньо (5–8 абзаців)" selected>Середньо</option>
+                <option value="розгорнуто (10+ абзаців)">Розгорнуто</option>
+              </select>
+            </label>
+            <div class="actions full">
+              <button type="submit" class="btn primary">Згенерувати текст</button>
+            </div>
+          </form>
+          <article id="textResult" class="result hidden"></article>
+        </section>
+
+        <section id="panel-image" class="tab-panel">
+          <header class="panel-header">
+            <h2>Генерація зображення</h2>
+          </header>
+          <form id="imageForm" class="form-grid">
+            <label class="field full">
+              <span>Опис зображення</span>
+              <textarea
+                id="imagePrompt"
+                rows="3"
+                placeholder="Сонячний пейзаж у стилі акварелі..."
+                required
+              ></textarea>
+            </label>
+            <label class="field">
+              <span>Розмір</span>
+              <select id="imageSize">
+                <option value="1024x1024">1024×1024</option>
+                <option value="1024x1792">1024×1792</option>
+                <option value="1792x1024">1792×1024</option>
+              </select>
+            </label>
+            <div class="actions full">
+              <button type="submit" class="btn primary">Згенерувати</button>
+            </div>
+          </form>
+          <div id="imageResult" class="image-result hidden">
+            <img id="generatedImage" alt="Згенероване зображення" />
+            <a id="imageDownload" class="btn secondary" download="generated.png"
+              >Завантажити</a
+            >
+          </div>
+        </section>
+
+        <div id="toast" class="toast hidden" role="status"></div>
+      </main>
+    </div>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
