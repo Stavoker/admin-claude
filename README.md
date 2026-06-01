@@ -4,14 +4,22 @@
 
 **Продакшен:** [https://admin-claude.onrender.com](https://admin-claude.onrender.com)
 
-## Локальний запуск
+## Найпростіший спосіб (рекомендовано)
+
+1. Запустіть **Docker API** на порту `3002` (Kiro).
+2. У цій папці:
 
 ```bash
 npm install
 npm start
 ```
 
-Відкрийте **http://localhost:3001**
+3. Відкрийте **http://localhost:3001**
+4. У налаштуваннях:
+   - Base URL: `http://localhost:3002/claude-kiro-oauth`
+   - API ключ і модель — як у вашого шлюзу
+
+**CORS не потрібен** — Admin на `:3001` сам звертається до Docker на `:3002`.
 
 ## Render
 

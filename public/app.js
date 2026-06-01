@@ -1,4 +1,10 @@
-import { callChat, callText, callImage, connectionModeLabel, isLocalApiHost } from "./api-client.js";
+import {
+  callChat,
+  callText,
+  callImage,
+  connectionModeLabel,
+  isAdminLocal,
+} from "./api-client.js";
 
 const STORAGE_KEY = "claude-admin-settings";
 
@@ -92,13 +98,8 @@ function updateConnectionBadge() {
     return;
   }
   badge.classList.remove("hidden", "direct", "proxy");
-  if (isLocalApiHost(baseUrl)) {
-    badge.classList.add("direct");
-    badge.textContent = "↳ " + connectionModeLabel(baseUrl);
-  } else {
-    badge.classList.add("proxy");
-    badge.textContent = "↳ " + connectionModeLabel(baseUrl);
-  }
+  badge.classList.add(isAdminLocal() ? "proxy" : "direct");
+  badge.textContent = "↳ " + connectionModeLabel(baseUrl);
 }
 
 function showToast(message, isError = false) {
@@ -231,19 +232,15 @@ els.chatInput.addEventListener("keydown", (ev) => {
 function updateDeployHint() {
   const el = $("deployHint");
   if (!el) return;
-  const onRender =
-    location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
-  if (onRender) {
+  if (isAdminLocal()) {
     el.innerHTML =
-      "<strong>Render + Docker на ПК:</strong> Base URL <code>http://localhost:3002/claude-kiro-oauth</code> — " +
-      "запити йдуть <strong>напряму з вашого браузера</strong> в Docker (Render їх не бачить). " +
-      "Docker має дозволити CORS для <code>" +
-      location.origin +
-      "</code>.";
+      "<strong>Найпростіше:</strong> Docker на <code>:3002</code>, потім <code>npm start</code> → " +
+      '<a href="http://localhost:3001">localhost:3001</a>. Base URL: ' +
+      "<code>http://localhost:3002/claude-kiro-oauth</code> — <strong>CORS не потрібен</strong>.";
   } else {
     el.innerHTML =
-      'Base URL: <code>http://localhost:3002/claude-kiro-oauth</code> (без дубля <code>/v1/chat/completions</code>). ' +
-      "Admin і Docker на одному ПК.";
+      "UI на Render + Docker на ПК: Base URL <code>http://localhost:3002/claude-kiro-oauth</code>. " +
+      "Потрібен CORS у Docker або запускайте Admin локально (<code>npm start</code>).";
   }
 }
 

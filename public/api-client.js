@@ -29,7 +29,12 @@ export function resolveEndpoint(baseUrl, endpointPath) {
   return `${normalizeBaseUrl(root)}${path}`;
 }
 
-/** API на localhost — з Render треба йти напряму з браузера, не через сервер */
+export function isAdminLocal() {
+  if (typeof location === "undefined") return false;
+  return location.hostname === "localhost" || location.hostname === "127.0.0.1";
+}
+
+/** API на localhost */
 export function isLocalApiHost(baseUrl) {
   try {
     const { hostname } = new URL(baseUrl);
@@ -42,6 +47,11 @@ export function isLocalApiHost(baseUrl) {
   } catch {
     return false;
   }
+}
+
+/** Прямо з браузера лише коли UI на Render, а API на localhost (інакше — проксі, без CORS) */
+export function useDirectApi(baseUrl) {
+  return isLocalApiHost(baseUrl) && !isAdminLocal();
 }
 
 function authHeaders(apiKey, format) {
@@ -221,7 +231,7 @@ async function proxyPost(path, body) {
 }
 
 export async function callChat(settings, payload) {
-  if (isLocalApiHost(settings.baseUrl)) {
+  if (useDirectApi(settings.baseUrl)) {
     return directChat(settings, payload);
   }
   return proxyPost("/api/chat", {
@@ -232,7 +242,7 @@ export async function callChat(settings, payload) {
 }
 
 export async function callText(settings, payload) {
-  if (isLocalApiHost(settings.baseUrl)) {
+  if (useDirectApi(settings.baseUrl)) {
     return directText(settings, payload);
   }
   return proxyPost("/api/text", {
@@ -243,7 +253,7 @@ export async function callText(settings, payload) {
 }
 
 export async function callImage(settings, payload) {
-  if (isLocalApiHost(settings.baseUrl)) {
+  if (useDirectApi(settings.baseUrl)) {
     return directImage(settings, payload);
   }
   return proxyPost("/api/image", {
@@ -254,7 +264,11 @@ export async function callImage(settings, payload) {
 }
 
 export function connectionModeLabel(baseUrl) {
-  return isLocalApiHost(baseUrl)
-    ? "прямо з браузера → Docker на вашому ПК"
-    : "через сервер Render";
+  if (useDirectApi(baseUrl)) {
+    return "браузер → Docker (потрібен CORS у Docker)";
+  }
+  if (isLocalApiHost(baseUrl) && isAdminLocal()) {
+    return "Admin → Docker (без CORS, найпростіше)";
+  }
+  return "через сервер Admin";
 }
