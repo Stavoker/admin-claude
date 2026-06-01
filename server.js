@@ -16,6 +16,49 @@ function normalizeBaseUrl(url) {
   return url.trim().replace(/\/+$/, "");
 }
 
+/** Підтримка повного endpoint URL або базового шляху без дублювання /v1/... */
+function resolveEndpoint(baseUrl, endpointPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  const path = endpointPath.startsWith("/") ? endpointPath : `/${endpointPath}`;
+  const pathNoSlash = path.slice(1);
+
+  if (base.endsWith(path) || base.endsWith(pathNoSlash)) {
+    return base;
+  }
+
+  const stripSuffixes = [
+    "/v1/chat/completions",
+    "/chat/completions",
+    "/v1/messages",
+    "/v1/images/generations",
+    "/v1/image/generations",
+  ];
+  let root = base;
+  for (const suffix of stripSuffixes) {
+    if (root.endsWith(suffix)) {
+      root = root.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return `${normalizeBaseUrl(root)}${path}`;
+}
+
+function wrapUpstreamError(e) {
+  const err = e instanceof Error ? e : new Error(String(e));
+  const cause = err.cause;
+  if (
+    cause?.code === "ECONNREFUSED" ||
+    cause?.code === "ENOTFOUND" ||
+    /fetch failed/i.test(err.message)
+  ) {
+    err.status = 503;
+    err.message =
+      "Не вдалося підключитися до API. Перевірте, що шлюз запущений (напр. localhost:3002) і Base URL вказано правильно.";
+  }
+  if (!err.status) err.status = 500;
+  return err;
+}
+
 function authHeaders(apiKey, format) {
   const headers = { "Content-Type": "application/json" };
   if (format === "anthropic") {
@@ -23,6 +66,7 @@ function authHeaders(apiKey, format) {
     headers["anthropic-version"] = "2023-06-01";
   } else {
     headers.Authorization = `Bearer ${apiKey}`;
+    headers["x-api-key"] = apiKey;
   }
   return headers;
 }
@@ -37,7 +81,13 @@ async function upstreamJson(url, options) {
     data = { raw: text };
   }
   if (!res.ok) {
-    const err = new Error(data?.error?.message || data?.message || text || res.statusText);
+    const msg =
+      data?.error?.message ||
+      (typeof data?.error === "string" ? data.error : null) ||
+      data?.message ||
+      (text && text.length < 500 ? text : null) ||
+      res.statusText;
+    const err = new Error(msg || `Помилка API (${res.status})`);
     err.status = res.status;
     err.data = data;
     throw err;
@@ -78,7 +128,7 @@ app.post("/api/chat", async (req, res) => {
         messages: messages || [],
       };
       if (system) body.system = system;
-      data = await upstreamJson(`${base}/v1/messages`, {
+      data = await upstreamJson(resolveEndpoint(base, "/v1/messages"), {
         method: "POST",
         headers: authHeaders(apiKey, format),
         body: JSON.stringify(body),
@@ -88,7 +138,7 @@ app.post("/api/chat", async (req, res) => {
       if (system && !chatMessages.some((m) => m.role === "system")) {
         chatMessages.unshift({ role: "system", content: system });
       }
-      data = await upstreamJson(`${base}/v1/chat/completions`, {
+      data = await upstreamJson(resolveEndpoint(base, "/v1/chat/completions"), {
         method: "POST",
         headers: authHeaders(apiKey, format),
         body: JSON.stringify({
@@ -101,9 +151,10 @@ app.post("/api/chat", async (req, res) => {
 
     res.json({ text: extractChatText(data, format), raw: data });
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || "Помилка API",
-      details: e.data,
+    const err = wrapUpstreamError(e);
+    res.status(err.status || 500).json({
+      error: err.message || "Помилка API",
+      details: err.data,
     });
   }
 });
@@ -130,7 +181,7 @@ app.post("/api/text", async (req, res) => {
 
     let data;
     if (format === "anthropic") {
-      data = await upstreamJson(`${base}/v1/messages`, {
+      data = await upstreamJson(resolveEndpoint(base, "/v1/messages"), {
         method: "POST",
         headers: authHeaders(apiKey, format),
         body: JSON.stringify({
@@ -141,7 +192,7 @@ app.post("/api/text", async (req, res) => {
         }),
       });
     } else {
-      data = await upstreamJson(`${base}/v1/chat/completions`, {
+      data = await upstreamJson(resolveEndpoint(base, "/v1/chat/completions"), {
         method: "POST",
         headers: authHeaders(apiKey, format),
         body: JSON.stringify({
@@ -157,9 +208,10 @@ app.post("/api/text", async (req, res) => {
 
     res.json({ text: extractChatText(data, format), raw: data });
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || "Помилка API",
-      details: e.data,
+    const err = wrapUpstreamError(e);
+    res.status(err.status || 500).json({
+      error: err.message || "Помилка API",
+      details: err.data,
     });
   }
 });
@@ -181,7 +233,7 @@ app.post("/api/image", async (req, res) => {
     let raw = null;
 
     if (format === "anthropic") {
-      const data = await upstreamJson(`${base}/v1/messages`, {
+      const data = await upstreamJson(resolveEndpoint(base, "/v1/messages"), {
         method: "POST",
         headers: authHeaders(apiKey, format),
         body: JSON.stringify({
@@ -211,7 +263,7 @@ app.post("/api/image", async (req, res) => {
       let lastError;
       for (const p of paths) {
         try {
-          const data = await upstreamJson(`${base}${p}`, {
+          const data = await upstreamJson(resolveEndpoint(base, p), {
             method: "POST",
             headers: authHeaders(apiKey, format),
             body: JSON.stringify({
@@ -235,9 +287,10 @@ app.post("/api/image", async (req, res) => {
 
     res.json({ imageUrl, raw });
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || "Помилка генерації зображення",
-      details: e.data,
+    const err = wrapUpstreamError(e);
+    res.status(err.status || 500).json({
+      error: err.message || "Помилка генерації зображення",
+      details: err.data,
     });
   }
 });

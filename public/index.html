@@ -39,7 +39,7 @@
             <input
               type="url"
               id="baseUrl"
-              placeholder="https://your-gateway.example.com"
+              placeholder="http://localhost:3002/claude-kiro-oauth"
             />
           </label>
           <label class="field">
@@ -54,7 +54,7 @@
             <input
               type="text"
               id="chatModel"
-              placeholder="claude-sonnet-4-20250514"
+              placeholder="claude-sonnet-4-5"
             />
           </label>
           <label class="field">
@@ -64,10 +64,7 @@
           <button type="button" class="btn secondary" id="saveSettings">
             Зберегти налаштування
           </button>
-          <p class="hint">
-            Ключ зберігається лише у вашому браузері. Запити йдуть через
-            <code>localhost:3001</code>.
-          </p>
+          <p class="hint" id="deployHint"></p>
         </section>
 
         <nav class="tabs" role="tablist">

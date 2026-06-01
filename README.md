@@ -1,8 +1,10 @@
 # Claude Admin
 
-Локальний веб-інтерфейс для роботи з Claude-подібним API (не офіційний Anthropic). Підтримує ключі формату `sk-...`.
+Веб-інтерфейс для роботи з Claude-подібним API (не офіційний Anthropic). Ключі формату `sk-...`.
 
-## Запуск
+**Продакшен:** [https://admin-claude.onrender.com](https://admin-claude.onrender.com)
+
+## Локальний запуск
 
 ```bash
 npm install
@@ -11,18 +13,40 @@ npm start
 
 Відкрийте **http://localhost:3001**
 
+## Render
+
+Репозиторій: [github.com/Stavoker/admin-claude](https://github.com/Stavoker/admin-claude)
+
+Сервіс слухає `PORT` від Render (див. `render.yaml`). Health check: `/api/health`.
+
 ## Налаштування
 
-1. Вставте **API ключ** (наприклад `sk-4785962200536602a6a9c94d8c373d4e`).
-2. Вкажіть **Base URL** від вашого провайдера (без `/v1` на кінці), наприклад `https://api.your-provider.com`.
-3. Оберіть формат API:
-   - **OpenAI-сумісний** — чат через `/v1/chat/completions`, зображення через `/v1/images/generations`.
-   - **Anthropic-сумісний** — `/v1/messages` (зображення залежать від можливостей шлюзу).
+1. **API ключ** — `sk-...`
+2. **Base URL** — корінь шлюзу **без** `/v1/chat/completions`
+3. **Формат API** — OpenAI або Anthropic (як у вашого провайдера)
+4. **Модель** — наприклад `claude-sonnet-4-5`
+
+### Локально (Admin + Kiro на одному ПК)
+
+| Сервіс | URL |
+|--------|-----|
+| Claude Admin | `http://localhost:3001` |
+| Шлюз Kiro OAuth | `http://localhost:3002/claude-kiro-oauth` |
+
+У полі Base URL: `http://localhost:3002/claude-kiro-oauth`
+
+### На Render ([admin-claude.onrender.com](https://admin-claude.onrender.com))
+
+Запити до API йдуть **з серверів Render**, не з вашого браузера напряму.
+
+- **`http://localhost:3002` не працюватиме** — для Render це їхня машина, а не ваш комп’ютер.
+- Потрібен **публічний** Base URL шлюзу, наприклад `https://your-kiro-gateway.example.com/claude-kiro-oauth`
+- Або користуйтесь Admin **локально** (`npm start`), якщо Kiro лише на вашому ПК.
 
 ## Можливості
 
-- **Чат** — діалог з моделлю.
-- **Текст** — генерація статей, постів тощо з вибором тону та обсягу.
-- **Зображення** — генерація за текстовим описом (OpenAI-формат).
+- **Чат** — діалог з моделлю
+- **Текст** — статті, пости (тон і обсяг)
+- **Зображення** — якщо шлюз підтримує `/v1/images/generations`
 
-Ключ зберігається лише в `localStorage` браузера; запити проксуються через локальний сервер.
+Ключ зберігається в `localStorage` браузера; запити проксуються через backend Admin.

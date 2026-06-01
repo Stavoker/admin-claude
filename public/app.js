@@ -101,7 +101,13 @@ async function apiPost(path, body) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Помилка сервера");
+  if (!res.ok) {
+    const detail =
+      typeof data.details === "object"
+        ? data.details?.error?.message || data.details?.message
+        : null;
+    throw new Error(detail ? `${data.error} (${detail})` : data.error || "Помилка сервера");
+  }
   return data;
 }
 
@@ -223,4 +229,24 @@ els.chatInput.addEventListener("keydown", (ev) => {
   }
 });
 
+function updateDeployHint() {
+  const el = $("deployHint");
+  if (!el) return;
+  const isLocal =
+    location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  if (isLocal) {
+    el.innerHTML =
+      'Base URL — корінь шлюзу без <code>/v1/chat/completions</code>. ' +
+      'Локально: Admin <code>:3001</code>, Kiro <code>http://localhost:3002/claude-kiro-oauth</code>.';
+  } else {
+    el.innerHTML =
+      'Ви на <strong>' +
+      location.host +
+      "</strong> (Render). Base URL має бути <strong>публічним https://...</strong> — " +
+      "<code>localhost</code> з Render не працює (це не ваш ПК). " +
+      "Шлюз Kiro теж треба задеплоїти в інтернет або користуйтесь Admin локально.";
+  }
+}
+
 loadSettings();
+updateDeployHint();
